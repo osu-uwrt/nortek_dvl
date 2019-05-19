@@ -28,12 +28,10 @@ void DvlInterface::dataCb(tacopie::tcp_client &client,
   {
     process(std::string(res.buffer.begin(), res.buffer.end()));
     ROS_INFO("Client connected");
-    // Might not needed, just curious
     client.async_write({res.buffer, nullptr});
     client_.async_read({1024, std::bind(&DvlInterface::dataCb, this, std::ref(client_),
                                         std::placeholders::_1)});
   }
-  // Else was not in the original code
   else {
     ROS_INFO("Client disconnected");
     client_.disconnect();
