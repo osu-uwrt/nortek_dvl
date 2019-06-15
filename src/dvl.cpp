@@ -23,7 +23,6 @@ DvlInterface::~DvlInterface() { client_.disconnect(); }
 void DvlInterface::dataCb(tacopie::tcp_client &client,
                           const tacopie::tcp_client::read_result &res)
 {
-  ROS_INFO("Result: %d", res.success);
   if (res.success)
   {
     process(std::string(res.buffer.begin(), res.buffer.end()));
@@ -33,7 +32,6 @@ void DvlInterface::dataCb(tacopie::tcp_client &client,
                                         std::placeholders::_1)});
   }
   else {
-    ROS_INFO("Client disconnected");
     client_.disconnect();
   }
 }
