@@ -58,7 +58,18 @@ OPTION(BUILD_EXAMPLES "examples for taco pie" OFF)
 add_subdirectory(tacopie)
 
 # build DVL node
-add_executable(dvl_node src/dvl_node.cpp src/dvl.cpp)
-add_dependencies(dvl_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} tacopie)
-target_link_libraries(dvl_node ${catkin_LIBRARIES} tacopie)
+add_executable(${PROJECT_NAME} src/dvl_node.cpp src/dvl.cpp)
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} tacopie)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} tacopie)
 
+install(TARGETS ${PROJECT_NAME}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}/${PROJECT_NAME}
+)
+
+install(DIRECTORY launch/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
