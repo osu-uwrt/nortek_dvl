@@ -23,15 +23,17 @@ DvlInterface::~DvlInterface() { client_.disconnect(); }
 void DvlInterface::dataCb(tacopie::tcp_client &client,
                           const tacopie::tcp_client::read_result &res)
 {
+  //ROS_INFO("Result: %d", res.success);
   if (res.success)
   {
     process(std::string(res.buffer.begin(), res.buffer.end()));
-    ROS_INFO("Client connected");
+    //ROS_INFO("Client connected");
     client.async_write({res.buffer, nullptr});
     client_.async_read({1024, std::bind(&DvlInterface::dataCb, this, std::ref(client_),
                                         std::placeholders::_1)});
   }
   else {
+    ROS_WARN("Nortek DVL: client disconnected");
     client_.disconnect();
   }
 }
