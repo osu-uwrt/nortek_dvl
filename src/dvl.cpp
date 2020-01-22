@@ -9,11 +9,10 @@ DvlInterface::DvlInterface()
   readParams();
   connect();
 
-  dvl_pub_ = private_nh_.advertise<nortek_dvl::Dvl>("dvl", 10);
-  dvl_status_pub_ =
-      private_nh_.advertise<nortek_dvl::DvlStatus>("status", 10);
+  dvl_pub_ = nh_.advertise<nortek_dvl::Dvl>("dvl", 10);
+  dvl_status_pub_ = nh_.advertise<nortek_dvl::DvlStatus>("dvl/status", 10);
   twist_pub_ =
-    private_nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("dvl_twist", 10);
+      nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("dvl_twist", 10);
 }
 
 DvlInterface::~DvlInterface() { client_.disconnect(); }
