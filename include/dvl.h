@@ -10,6 +10,8 @@
 
 #include <nortek_dvl/Dvl.h>
 #include <nortek_dvl/DvlStatus.h>
+#include <std_msgs/Header.h>
+#include <geometry_msgs/TwistWithCovarianceStamped.h>
 
 namespace nortek_dvl {
 
@@ -21,6 +23,7 @@ class DvlInterface {
 
     ros::Publisher dvl_pub_;
     ros::Publisher dvl_status_pub_;
+    ros::Publisher twist_pub_;
     
     void dataCb(tacopie::tcp_client& client,
               const tacopie::tcp_client::read_result& res);
@@ -28,8 +31,7 @@ class DvlInterface {
     void process(std::string message);
     bool validateChecksum(std::string& message);
 
-    bool stringToDvlMessage(std::string& str, nortek_dvl::Dvl& dvl,
-                          nortek_dvl::DvlStatus& status);
+    bool publishMessages(std::string& str);
     void parseDvlStatus(unsigned long num, nortek_dvl::DvlStatus& status);
     template <class T>
     T hexStringToInt(std::string str);
@@ -38,11 +40,10 @@ class DvlInterface {
     void readParams();
 
     std::string address_;
+    std::string frame_id_;
     uint16_t port_;
-    std::string dvl_topic_;
-    std::string dvl_status_topic_;
     tacopie::tcp_client client_;
-    double dvl_rotation_;
+    bool use_enu_;
 
   public:
     explicit DvlInterface();
