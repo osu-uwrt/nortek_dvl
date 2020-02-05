@@ -12,6 +12,7 @@
 #include <nortek_dvl/DvlStatus.h>
 #include <std_msgs/Header.h>
 #include <geometry_msgs/TwistWithCovarianceStamped.h>
+#include <sensor_msgs/Range.h>
 
 namespace nortek_dvl {
 
@@ -24,6 +25,7 @@ class DvlInterface {
     ros::Publisher dvl_pub_;
     ros::Publisher dvl_status_pub_;
     ros::Publisher twist_pub_;
+    ros::Publisher beam_pubs_[4];
     
     void dataCb(tacopie::tcp_client& client,
               const tacopie::tcp_client::read_result& res);

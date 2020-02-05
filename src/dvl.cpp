@@ -13,6 +13,9 @@ DvlInterface::DvlInterface()
   dvl_status_pub_ = nh_.advertise<nortek_dvl::DvlStatus>("dvl/status", 10);
   twist_pub_ =
       nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("dvl_twist", 10);
+  for (int i = 0; i < 4; i++) {
+    beam_pubs_[i] = nh_.advertise<sensor_msgs::Range>("dvl_sonar" + std::to_string(i), 10);
+  }
 }
 
 DvlInterface::~DvlInterface() { client_.disconnect(); }
@@ -112,6 +115,7 @@ bool DvlInterface::publishMessages(std::string &str)
     nortek_dvl::DvlStatus status;
     geometry_msgs::TwistWithCovarianceStamped twist;
     std_msgs::Header header;
+    sensor_msgs::Range beams[4];
 
     header.stamp = ros::Time();
     header.frame_id = frame_id_;
@@ -119,10 +123,12 @@ bool DvlInterface::publishMessages(std::string &str)
     dvl.time = std::stod(results[1]);
     dvl.dt1 = std::stof(results[2]);
     dvl.dt2 = std::stof(results[3]);
-    dvl.beamDistance[0] = std::stof(results[8]);
-    dvl.beamDistance[1] = std::stof(results[9]);
-    dvl.beamDistance[2] = std::stof(results[10]);
-    dvl.beamDistance[3] = std::stof(results[11]);
+    for (int i = 0; i < 4; i++) {
+      beams[i].header.stamp = ros::Time();
+      beams[i].header.frame_id = "dvl_sonar" + std::to_string(i) + "_link";
+      beams[i].range = std::stof(results[8 + i]);
+      beams[i].max_range = 10;
+    }
     dvl.batteryVoltage = std::stof(results[12]);
     dvl.speedSound = std::stof(results[13]);
     dvl.pressure = std::stof(results[14]);
@@ -148,6 +154,12 @@ bool DvlInterface::publishMessages(std::string &str)
       }
       if (twist_pub_.getNumSubscribers() > 0)
         twist_pub_.publish(twist);
+    }
+
+    for (int i = 0; i < 4; i++) {
+      if (beams[i].range != 0) {
+        beam_pubs_[i].publish(beams[i]);
+      }
     }
 
     parseDvlStatus(hexStringToInt<unsigned long>(results[16].substr(2)),
