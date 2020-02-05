@@ -222,10 +222,12 @@ void DvlInterface::parseDvlStatus(unsigned long num, nortek_dvl::DvlStatus &stat
 
 void DvlInterface::readParams()
 {
+  int port;
   private_nh_.getParam("address", address_);
-  private_nh_.getParam("port", port_);
+  private_nh_.getParam("port", port);
   private_nh_.getParam("frame_id", frame_id_);
   private_nh_.getParam("use_enu", use_enu_);
+  port_ = port;
 
   std::cout << "DVL PARAMS" << std::endl;
   std::cout << "-----------------" << std::endl;
