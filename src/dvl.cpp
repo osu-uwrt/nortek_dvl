@@ -124,8 +124,10 @@ bool DvlInterface::publishMessages(std::string &str)
     dvl.dt1 = std::stof(results[2]);
     dvl.dt2 = std::stof(results[3]);
     for (int i = 0; i < 4; i++) {
-      beams[i].header.stamp = ros::Time();
-      beams[i].header.frame_id = "dvl_sonar" + std::to_string(i) + "_link";
+      beams[i].header.stamp = ros::Time::now();
+      std::string frame = sonar_frame_id_;
+      frame.replace(frame.find("%d"), 2, std::to_string(i));
+      beams[i].header.frame_id = frame;
       beams[i].range = std::stof(results[8 + i]);
       beams[i].max_range = 10;
     }
@@ -140,10 +142,11 @@ bool DvlInterface::publishMessages(std::string &str)
     if (isVelocityValid(std::stof(results[4])) and isVelocityValid(std::stof(results[5])) and
         isVelocityValid(std::stof(results[6])))
     {
+      double fom = std::stof(results[7]);
       twist.header = header;
-      twist.twist.covariance[0] = std::stof(results[7]);
-      twist.twist.covariance[7] = std::stof(results[7]);
-      twist.twist.covariance[14] = std::stof(results[7]);
+      twist.twist.covariance[0] = fom * fom;
+      twist.twist.covariance[7] = fom * fom;
+      twist.twist.covariance[14] = fom * fom;
       twist.twist.twist.linear.x = std::stof(results[4]);
       twist.twist.twist.linear.y = std::stof(results[5]);
       twist.twist.twist.linear.z = std::stof(results[6]);
@@ -238,6 +241,7 @@ void DvlInterface::readParams()
   private_nh_.getParam("address", address_);
   private_nh_.getParam("port", port);
   private_nh_.getParam("frame_id", frame_id_);
+  private_nh_.getParam("sonar_frame_id", sonar_frame_id_);
   private_nh_.getParam("use_enu", use_enu_);
   port_ = port;
 
@@ -246,6 +250,7 @@ void DvlInterface::readParams()
   std::cout << "address: " << address_ << std::endl;
   std::cout << "port: " << port_ << std::endl;
   std::cout << "frame_id: " << frame_id_ << std::endl;
+  std::cout << "sonar_frame_id: " << sonar_frame_id_ << std::endl;
   std::cout << "use_enu: " << use_enu_ << std::endl;
   std::cout << "-----------------\n"
             << std::endl;

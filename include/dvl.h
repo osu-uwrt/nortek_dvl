@@ -42,7 +42,7 @@ class DvlInterface {
     void readParams();
 
     std::string address_;
-    std::string frame_id_;
+    std::string frame_id_, sonar_frame_id_;
     uint16_t port_;
     tacopie::tcp_client client_;
     bool use_enu_;

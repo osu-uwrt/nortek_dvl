@@ -1,5 +1,6 @@
 <launch>
     <arg name="frame_id" default="dvl_link" doc="TF frame in message headers" />
+    <arg name="sonar_frame_id" default="dvl_sonar%d_link" doc="TF frame in message headers" />
     <arg name="address" default="uwrt-dvl" doc="Address of DVL"/>
     <arg name="port" default="9004" doc="Port of DVL"/>
     <arg name="use_enu" default="true" doc="Whether to report twist in ENU frame"/>
@@ -8,6 +9,7 @@
       <param name="address" type="string" value="$(arg address)" />
       <param name="port" type="int" value="$(arg port)" />
       <param name="frame_id" type="string" value="$(arg frame_id)" />
+      <param name="sonar_frame_id" type="string" value="$(arg sonar_frame_id)" />
       <param name="use_enu" type="bool" value="$(arg use_enu)" />
     </node>
 </launch>
