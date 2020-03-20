@@ -3,19 +3,19 @@
 using namespace nortek_dvl;
 
 DvlInterface::DvlInterface()
-    : address_("192.168.1.240"),
-      port_(9004),
-      dvl_status_topic_("status"),
-      dvl_topic_("/dvl"),
-      nh_(),
+    : nh_(),
       private_nh_("~")
 {
   readParams();
   connect();
 
-  dvl_pub_ = private_nh_.advertise<nortek_dvl::Dvl>(dvl_topic_, 10);
-  dvl_status_pub_ =
-      private_nh_.advertise<nortek_dvl::DvlStatus>(dvl_status_topic_, 10);
+  dvl_pub_ = nh_.advertise<nortek_dvl::Dvl>("dvl", 10);
+  dvl_status_pub_ = nh_.advertise<nortek_dvl::DvlStatus>("dvl/status", 10);
+  twist_pub_ =
+      nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("dvl_twist", 10);
+  for (int i = 0; i < 4; i++) {
+    beam_pubs_[i] = nh_.advertise<sensor_msgs::Range>("dvl_sonar" + std::to_string(i), 10);
+  }
 }
 
 DvlInterface::~DvlInterface() { client_.disconnect(); }
@@ -32,7 +32,8 @@ void DvlInterface::dataCb(tacopie::tcp_client &client,
     client_.async_read({1024, std::bind(&DvlInterface::dataCb, this, std::ref(client_),
                                         std::placeholders::_1)});
   }
-  else {
+  else
+  {
     ROS_WARN("Nortek DVL: client disconnected");
     client_.disconnect();
   }
@@ -74,8 +75,6 @@ bool DvlInterface::validateChecksum(std::string &message)
 
 void DvlInterface::process(std::string message)
 {
-  nortek_dvl::Dvl dvl;
-  nortek_dvl::DvlStatus status;
   boost::algorithm::trim(message);
   if (message.compare(0, 6, "Nortek") == 0)
   {
@@ -86,13 +85,7 @@ void DvlInterface::process(std::string message)
     if (validateChecksum(message))
     {
       ROS_DEBUG("%s", message.c_str());
-      if (stringToDvlMessage(message, dvl, status))
-      {
-        if (dvl_pub_.getNumSubscribers() > 0)
-          dvl_pub_.publish(dvl);
-        if (dvl_status_pub_.getNumSubscribers() > 0)
-          dvl_status_pub_.publish(status);
-      }
+      publishMessages(message);
     }
     else
     {
@@ -111,53 +104,71 @@ T DvlInterface::hexStringToInt(std::string str)
   return x;
 }
 
-bool DvlInterface::stringToDvlMessage(std::string &str, nortek_dvl::Dvl &dvl,
-                                      nortek_dvl::DvlStatus &status)
+bool DvlInterface::publishMessages(std::string &str)
 {
   std::vector<std::string> results;
   boost::algorithm::split(results, str, boost::algorithm::is_any_of(",="));
 
   if (results.size() == 17)
   {
-    dvl.header.stamp = ros::Time::now();
+    nortek_dvl::Dvl dvl;
+    nortek_dvl::DvlStatus status;
+    geometry_msgs::TwistWithCovarianceStamped twist;
+    std_msgs::Header header;
+    sensor_msgs::Range beams[4];
+
+    header.stamp = ros::Time();
+    header.frame_id = frame_id_;
+    dvl.header = header;
     dvl.time = std::stod(results[1]);
     dvl.dt1 = std::stof(results[2]);
     dvl.dt2 = std::stof(results[3]);
-    dvl.velocity.x = std::stof(results[4]);
-    dvl.velocity.y = std::stof(results[5]);
-    dvl.velocity.z = std::stof(results[6]);
-    if (isVelocityValid(dvl.velocity.x) and isVelocityValid(dvl.velocity.y) and
-        isVelocityValid(dvl.velocity.z))
-    {
-      if (dvl_rotation_ != 0)
-      {
-        // apply 2d rotation
-        double temp_x = cos(dvl_rotation_) * dvl.velocity.x -
-                        sin(dvl_rotation_) * dvl.velocity.y;
-        double temp_y = sin(dvl_rotation_) * dvl.velocity.x +
-                        cos(dvl_rotation_) * dvl.velocity.y;
-        dvl.velocity.x = temp_x;
-        dvl.velocity.y = temp_y;
-      }
+    for (int i = 0; i < 4; i++) {
+      beams[i].header.stamp = ros::Time::now();
+      std::string frame = sonar_frame_id_;
+      frame.replace(frame.find("%d"), 2, std::to_string(i));
+      beams[i].header.frame_id = frame;
+      beams[i].range = std::stof(results[8 + i]);
+      beams[i].max_range = 10;
     }
-    else
-    {
-      dvl.velocity.x = std::numeric_limits<double>::quiet_NaN();
-      dvl.velocity.y = std::numeric_limits<double>::quiet_NaN();
-      dvl.velocity.z = std::numeric_limits<double>::quiet_NaN();
-    }
-    dvl.figureOfMerit = std::stof(results[7]);
-    dvl.beamDistance[0] = std::stof(results[8]);
-    dvl.beamDistance[1] = std::stof(results[9]);
-    dvl.beamDistance[2] = std::stof(results[10]);
-    dvl.beamDistance[3] = std::stof(results[11]);
     dvl.batteryVoltage = std::stof(results[12]);
     dvl.speedSound = std::stof(results[13]);
     dvl.pressure = std::stof(results[14]);
     dvl.temp = std::stof(results[15]);
 
+    if (dvl_pub_.getNumSubscribers() > 0)
+      dvl_pub_.publish(dvl);
+
+    if (isVelocityValid(std::stof(results[4])) and isVelocityValid(std::stof(results[5])) and
+        isVelocityValid(std::stof(results[6])))
+    {
+      double fom = std::stof(results[7]);
+      twist.header = header;
+      twist.twist.covariance[0] = fom * fom;
+      twist.twist.covariance[7] = fom * fom;
+      twist.twist.covariance[14] = fom * fom;
+      twist.twist.twist.linear.x = std::stof(results[4]);
+      twist.twist.twist.linear.y = std::stof(results[5]);
+      twist.twist.twist.linear.z = std::stof(results[6]);
+      if (use_enu_)
+      {
+        twist.twist.twist.linear.y *= -1;
+        twist.twist.twist.linear.z *= -1;
+      }
+      if (twist_pub_.getNumSubscribers() > 0)
+        twist_pub_.publish(twist);
+    }
+
+    for (int i = 0; i < 4; i++) {
+      if (beams[i].range != 0) {
+        beam_pubs_[i].publish(beams[i]);
+      }
+    }
+
     parseDvlStatus(hexStringToInt<unsigned long>(results[16].substr(2)),
                    status);
+    if (dvl_status_pub_.getNumSubscribers() > 0)
+      dvl_status_pub_.publish(status);
     return true;
   }
 
@@ -229,20 +240,18 @@ void DvlInterface::readParams()
   int port;
   private_nh_.getParam("address", address_);
   private_nh_.getParam("port", port);
-  // port_ = static_cast<uint16_t>(port);
-  private_nh_.getParam("dvl_topic", dvl_topic_);
-  private_nh_.getParam("status_topic", dvl_status_topic_);
-  private_nh_.getParam("dvl_rotation", dvl_rotation_);
+  private_nh_.getParam("frame_id", frame_id_);
+  private_nh_.getParam("sonar_frame_id", sonar_frame_id_);
+  private_nh_.getParam("use_enu", use_enu_);
+  port_ = port;
 
   std::cout << "DVL PARAMS" << std::endl;
   std::cout << "-----------------" << std::endl;
   std::cout << "address: " << address_ << std::endl;
   std::cout << "port: " << port_ << std::endl;
-  std::cout << "rotation: " << dvl_rotation_ << std::endl;
-  std::cout << "status_topic: " << ros::this_node::getName() << "/"
-            << dvl_status_topic_ << std::endl;
-  std::cout << "dvl data topic: " << ros::this_node::getName() << "/"
-            << dvl_topic_ << std::endl;
+  std::cout << "frame_id: " << frame_id_ << std::endl;
+  std::cout << "sonar_frame_id: " << sonar_frame_id_ << std::endl;
+  std::cout << "use_enu: " << use_enu_ << std::endl;
   std::cout << "-----------------\n"
             << std::endl;
 }
