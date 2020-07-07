@@ -117,7 +117,7 @@ bool DvlInterface::publishMessages(std::string &str)
     std_msgs::Header header;
     sensor_msgs::Range beams[4];
 
-    header.stamp = ros::Time();
+    header.stamp = ros::Time::now();
     header.frame_id = frame_id_;
     dvl.header = header;
     dvl.time = std::stod(results[1]);
