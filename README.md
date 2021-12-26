@@ -1,4 +1,4 @@
-# Nortek DVL1000 ROS Interface Layer
+# Nortek DVL1000 ROS2 Interface Layer
 
 ROS Interface layer for Nortek DVL1000 by your friends at [ARVP](https://arvp.org) from University of Alberta
 
@@ -12,9 +12,11 @@ Custom messages are used for both publishers.
 
 * **address** IP address / host name of DVL
 * **port** port number for TCP connection
-* **dvl_topic** dvl data pub topic name
-* **dvl_status_topic** dvl status pub topic namei
-* **dvl_rotation** rotate dvl data if the DVL coods do not match the robot coods (in radians)
+* **timeout** TCP connection timeout waiting for DVL response
+* **max_connect_time** maximum time spent waiting for the DVL server to become availiable before the node gives up
+* **frame_id** dvl position frame id
+* **sonar_frame_id** dvl sonar frame id name(s)
+* **use_enu** Whether to report twist in ENU frame
 
 
 *please note that both publishers are in the nodes private namespace*

@@ -1,5 +1,7 @@
 #include "dvl_driver.h"
 
+#include <chrono>
+
 using namespace nortek_dvl;
 
 DvlInterface::DvlInterface() : Node("nortek_dvl") {
@@ -38,12 +40,28 @@ void DvlInterface::dataCb(tacopie::tcp_client &client,
 }
 
 void DvlInterface::connect() {
-    try {
-        client_.connect(address_, port_, 500);
-        client_.async_read(
-            {1024, std::bind(&DvlInterface::dataCb, this, std::ref(client_),
-                             std::placeholders::_1)});
-    } catch (tacopie::tacopie_error &e) {
+    auto start = this->get_clock()->now();
+    auto maxTime =
+        start + rclcpp::Duration(std::chrono::seconds(max_connect_time_));
+    bool connectSuccess = false;
+
+    // loop this until the connection succeeds, RCLCPP is called to shutdown, or
+    // timeout expires
+    while (!connectSuccess && rclcpp::ok() &&
+           maxTime > this->get_clock()->now()) {
+        try {
+            client_.connect(address_, port_, 500);
+            client_.async_read(
+                {1024, std::bind(&DvlInterface::dataCb, this, std::ref(client_),
+                                 std::placeholders::_1)});
+            connectSuccess = true;
+        } catch (tacopie::tacopie_error &e) {
+            std::cout << "DVL connection timeout, retrying " << address_ << ":"
+                      << std::to_string(port_) << std::endl;
+        }
+    }
+
+    if (!connectSuccess) {
         throw std::runtime_error("Unable to connect to DVL on address " +
                                  address_ + ":" + std::to_string(port_));
     }
@@ -205,29 +223,35 @@ void DvlInterface::parseDvlStatus(unsigned long num,
 
 void DvlInterface::readParams() {
     // Need to declare params for ros2 before retrieval
-    this->declare_parameter<std::string>("address", "");
+    this->declare_parameter<std::string>("address", "192.168.1.220");
     this->declare_parameter<int>("port", 9004);
-    this->declare_parameter<std::string>("frame_id", "");
-    this->declare_parameter<std::string>("sonar_frame_id", "");
-    this->declare_parameter<bool>("use_enu", false);
+    this->declare_parameter<int>("timeout", 500);
+    this->declare_parameter<int>("max_connect_time", 100);
+    this->declare_parameter<std::string>("frame_id", "dvl_link");
+    this->declare_parameter<std::string>("sonar_frame_id", "dvl_sonar%d_link");
+    this->declare_parameter<bool>("use_enu", true);
 
-    // now we can get the param values
-    int port;
+    // now we can get the param values;
     this->get_parameter("address", address_);
-    this->get_parameter("port", port);
+    this->get_parameter("port", port_);
+    this->get_parameter("timeout", timeout_);
+    this->get_parameter("max_connect_time", max_connect_time_);
     this->get_parameter("frame_id", frame_id_);
     this->get_parameter("sonar_frame_id", sonar_frame_id_);
     this->get_parameter("use_enu", use_enu_);
-    port_ = port;
 
+    // show the params to the user to confirm they were recieved
     std::cout << "DVL PARAMS" << std::endl;
     std::cout << "-----------------" << std::endl;
     std::cout << "address: " << address_ << std::endl;
     std::cout << "port: " << port_ << std::endl;
+    std::cout << "timeout: " << timeout_ << std::endl;
+    std::cout << "max_connect_time: " << max_connect_time_ << std::endl;
+    std::cout << "-----------------" << std::endl;
     std::cout << "frame_id: " << frame_id_ << std::endl;
     std::cout << "sonar_frame_id: " << sonar_frame_id_ << std::endl;
     std::cout << "use_enu: " << use_enu_ << std::endl;
-    std::cout << "-----------------\n" << std::endl;
+    std::cout << "-----------------" << std::endl;
 }
 
 bool DvlInterface::isVelocityValid(double vel) {

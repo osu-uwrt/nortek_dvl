@@ -1,32 +1,34 @@
 #pragma once
 
 #include <bits/stdc++.h>
-#include <rclcpp/rclcpp.hpp>
+
 #include <boost/algorithm/string.hpp>
 #include <limits>
+#include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <tacopie/tacopie>
 #include <vector>
 
 // message includes
+#include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <nortek_dvl/msg/dvl.hpp>
 #include <nortek_dvl/msg/dvl_status.hpp>
-#include <std_msgs/msg/header.hpp>
-#include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <sensor_msgs/msg/range.hpp>
+#include <std_msgs/msg/header.hpp>
 
 namespace nortek_dvl {
 
 class DvlInterface : public rclcpp::Node {
-  private:
-
+ private:
     rclcpp::Publisher<nortek_dvl::msg::Dvl>::SharedPtr dvl_pub_;
     rclcpp::Publisher<nortek_dvl::msg::DvlStatus>::SharedPtr dvl_status_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr twist_pub_;
-    std::vector<rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr> beam_pubs_;
-    
+    rclcpp::Publisher<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr
+        twist_pub_;
+    std::vector<rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr>
+        beam_pubs_;
+
     void dataCb(tacopie::tcp_client& client,
-              const tacopie::tcp_client::read_result& res);
+                const tacopie::tcp_client::read_result& res);
     void connect();
     void process(std::string message);
     bool validateChecksum(std::string& message);
@@ -44,12 +46,10 @@ class DvlInterface : public rclcpp::Node {
     uint16_t port_;
     tacopie::tcp_client client_;
     bool use_enu_;
+    int max_connect_time_, timeout_;
 
-  public:
+ public:
     explicit DvlInterface();
     ~DvlInterface();
-
- 
 };
 }  // namespace nortek_dvl
-
