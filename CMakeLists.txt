@@ -36,6 +36,12 @@ ament_target_dependencies(dvl
 install(TARGETS dvl
   DESTINATION lib/${PROJECT_NAME})
 
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 
 #generate messages
 rosidl_generate_interfaces(${PROJECT_NAME}
