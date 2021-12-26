@@ -50,7 +50,7 @@ void DvlInterface::connect() {
     while (!connectSuccess && rclcpp::ok() &&
            maxTime > this->get_clock()->now()) {
         try {
-            client_.connect(address_, port_, 500);
+            client_.connect(address_, port_, timeout_);
             client_.async_read(
                 {1024, std::bind(&DvlInterface::dataCb, this, std::ref(client_),
                                  std::placeholders::_1)});
