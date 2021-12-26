@@ -6,7 +6,7 @@ Connects to DVL over Ethernet (port:9004) and publishes DVL data + status.
 Velocities are output in m/s (or NaN if invalid).
 Custom messages are used for both publishers.
 
-**Launching the node:** `roslaunch nortek_dvl dvl.launch`
+**Launching the node:** `ros2 launch nortek_dvl dvl.launch`
 
 ### Parameters
 

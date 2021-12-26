@@ -1,75 +1,62 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.8)
 project(nortek_dvl)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  roscpp
-  std_msgs
-  message_generation
-)
-
-################################################
-## Declare ROS messages, services and actions ##
-################################################
-
-## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  Dvl.msg
-  DvlStatus.msg
-)
-
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  geometry_msgs 
-  std_msgs
-)
-
-###################################
-## catkin specific configuration ##
-###################################
-
-catkin_package(
-  INCLUDE_DIRS include
-  CATKIN_DEPENDS message_runtime 
-)
-##catkin_package()
-
-###########
-## Build ##
-###########
-
-## Specify additional locations of header files
-include_directories(
-  include
-  tacopie/includes
-  ${catkin_INCLUDE_DIRS}
-)
+# find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
 
 # build tacopie library
 OPTION(BUILD_EXAMPLES "examples for taco pie" OFF)
 add_subdirectory(tacopie)
 
-# build DVL node
-add_executable(${PROJECT_NAME} src/dvl_node.cpp src/dvl.cpp)
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} tacopie)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} tacopie)
+add_executable(dvl src/dvl.cpp src/dvl_driver.cpp)
+target_include_directories(dvl PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${CMAKE_CURRENT_SOURCE_DIR}/tacopie/includes)
+target_compile_features(dvl PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+add_dependencies(dvl tacopie)
+target_link_libraries(dvl tacopie)
 
-install(TARGETS ${PROJECT_NAME}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+ament_target_dependencies(dvl  
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  std_msgs
 )
 
-install(DIRECTORY include/
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}/${PROJECT_NAME}
-)
+install(TARGETS dvl
+  DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+
+#generate messages
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Dvl.msg"
+  "msg/DvlStatus.msg"
+  DEPENDENCIES geometry_msgs
 )
+ament_export_dependencies(rosidl_default_runtime)
+rosidl_target_interfaces(dvl
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # uncomment the line when a copyright and license is not present in all source files
+  #set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # uncomment the line when this package is not in a git repo
+  #set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package()

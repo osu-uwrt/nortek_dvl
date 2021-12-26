@@ -1,4 +1,4 @@
-Header header
+std_msgs/Header header
 
 bool b1_vel_valid
 bool b2_vel_valid
