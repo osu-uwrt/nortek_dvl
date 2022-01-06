@@ -4,7 +4,7 @@
   <name>nortek_dvl</name>
   <version>0.0.0</version>
   <description>nortek dvl1000 interface layer</description>
-  <maintainer email="coalman321@gmail.com">Cole Tucker</maintainer>
+  <maintainer email="tucker.737@osu.edu">Cole Tucker</maintainer>
   <license>MIT</license>
 
   <author email="rumman.waqar05@gmail.com">Rumman Waqar</author>
