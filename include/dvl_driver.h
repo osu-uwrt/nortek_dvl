@@ -46,7 +46,7 @@ class DvlInterface : public rclcpp::Node {
     uint16_t port_;
     tacopie::tcp_client client_;
     bool use_enu_;
-    int max_connect_time_, timeout_;
+    int max_connect_time_, min_connect_time_, timeout_;
 
  public:
     explicit DvlInterface();

@@ -1,5 +1,5 @@
 #include "dvl_driver.h"
-
+#include <unistd.hpp>
 #include <chrono>
 
 using namespace nortek_dvl;
@@ -49,6 +49,7 @@ void DvlInterface::connect() {
     // timeout expires
     while (!connectSuccess && rclcpp::ok() &&
            maxTime > this->get_clock()->now()) {
+
         try {
             client_.connect(address_, port_, timeout_);
             client_.async_read(
@@ -58,6 +59,9 @@ void DvlInterface::connect() {
         } catch (tacopie::tacopie_error &e) {
             std::cout << "DVL connection timeout, retrying " << address_ << ":"
                       << std::to_string(port_) << std::endl;
+
+            // Throttle connection attempts
+            sleep(max_connect_time_);
         }
     }
 
@@ -236,6 +240,7 @@ void DvlInterface::readParams() {
     this->get_parameter("port", port_);
     this->get_parameter("timeout", timeout_);
     this->get_parameter("max_connect_time", max_connect_time_);
+    this->get_parameter("min_connect_time", min_connect_time_);
     this->get_parameter("frame_id", frame_id_);
     this->get_parameter("sonar_frame_id", sonar_frame_id_);
     this->get_parameter("use_enu", use_enu_);
@@ -247,6 +252,7 @@ void DvlInterface::readParams() {
     std::cout << "port: " << port_ << std::endl;
     std::cout << "timeout: " << timeout_ << std::endl;
     std::cout << "max_connect_time: " << max_connect_time_ << std::endl;
+    std::cout << "min_connect_time: " << min_connect_time_ << std::endl;
     std::cout << "-----------------" << std::endl;
     std::cout << "frame_id: " << frame_id_ << std::endl;
     std::cout << "sonar_frame_id: " << sonar_frame_id_ << std::endl;
