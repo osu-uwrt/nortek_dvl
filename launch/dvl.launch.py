@@ -23,6 +23,10 @@ def generate_launch_description():
             default_value='100',
             description='Maximum time elapsed in seconds before connection attempt on startup is aborted'),
         launch.actions.DeclareLaunchArgument(
+            'min_connect_time',
+            default_value='5',
+            description='Minimum time elapsed in seconds before connection attempt on startup is attempted'),
+        launch.actions.DeclareLaunchArgument(
             'frame_id',
             default_value='dvl_link',
             description='TF frame in message headerss'),
@@ -49,6 +53,7 @@ def generate_launch_description():
                 {'port': launch.substitutions.LaunchConfiguration('port')},
                 {'timeout': launch.substitutions.LaunchConfiguration('timeout')},
                 {'max_connect_time': launch.substitutions.LaunchConfiguration('max_connect_time')},
+                {'min_connect_time': launch.substitutions.LaunchConfiguration('min_connect_time')},
                 {'frame_id': launch.substitutions.LaunchConfiguration('frame_id')},
                 {'sonar_frame_id': launch.substitutions.LaunchConfiguration('sonar_frame_id')},
                 {'use_enu': launch.substitutions.LaunchConfiguration('use_enu')},

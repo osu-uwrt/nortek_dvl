@@ -1,5 +1,5 @@
 #include "dvl_driver.h"
-#include <unistd.hpp>
+#include <unistd.h>
 #include <chrono>
 
 using namespace nortek_dvl;
@@ -61,7 +61,7 @@ void DvlInterface::connect() {
                       << std::to_string(port_) << std::endl;
 
             // Throttle connection attempts
-            sleep(max_connect_time_);
+            rclcpp::sleep_for(std::chrono::seconds(min_connect_time_));
         }
     }
 
@@ -231,6 +231,7 @@ void DvlInterface::readParams() {
     this->declare_parameter<int>("port", 9004);
     this->declare_parameter<int>("timeout", 500);
     this->declare_parameter<int>("max_connect_time", 100);
+    this->declare_parameter<int>("min_connect_time", 5);
     this->declare_parameter<std::string>("frame_id", "dvl_link");
     this->declare_parameter<std::string>("sonar_frame_id", "dvl_sonar%d_link");
     this->declare_parameter<bool>("use_enu", true);
