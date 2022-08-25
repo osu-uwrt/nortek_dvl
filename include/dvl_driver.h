@@ -46,10 +46,6 @@ class DvlInterface : public rclcpp::Node {
     bool use_enu_;
     int max_connect_time_, min_connect_time_, timeout_;
 
-    //socket creation
-    boost::asio::io_service io_service;
-    tcp::socket socket;
-
  public:
     explicit DvlInterface();
     ~DvlInterface();

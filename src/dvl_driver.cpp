@@ -35,7 +35,7 @@ void DvlInterface::dataCb(tacopie::tcp_client &client,
                              std::placeholders::_1)});
     } else {
         RCLCPP_WARN(this->get_logger(), "Nortek DVL: client disconnected");
-        client_.disconnect();async_read
+        client_.disconnect();
     }
 }
 
@@ -56,6 +56,8 @@ void DvlInterface::connect() {
             socket.connect(tcp::endpoint( boost::asio::ip::address::from_string(address_), port_));
 
             client_.connect(address_, port_, timeout_);
+            auto bindBoi = std::bind(&DvlInterface::dataCb, this, std::ref(client_),
+                                 std::placeholders::_1)
             client_.async_read(
                 {1024, std::bind(&DvlInterface::dataCb, this, std::ref(client_),
                                  std::placeholders::_1)});
