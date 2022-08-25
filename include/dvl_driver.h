@@ -6,7 +6,6 @@
 #include <limits>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
-#include <tacopie/tacopie>
 #include <vector>
 
 // message includes
@@ -44,9 +43,12 @@ class DvlInterface : public rclcpp::Node {
     std::string address_;
     std::string frame_id_, sonar_frame_id_;
     uint16_t port_;
-    tacopie::tcp_client client_;
     bool use_enu_;
     int max_connect_time_, min_connect_time_, timeout_;
+
+    //socket creation
+    boost::asio::io_service io_service;
+    tcp::socket socket;
 
  public:
     explicit DvlInterface();

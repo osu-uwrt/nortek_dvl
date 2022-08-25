@@ -35,7 +35,7 @@ void DvlInterface::dataCb(tacopie::tcp_client &client,
                              std::placeholders::_1)});
     } else {
         RCLCPP_WARN(this->get_logger(), "Nortek DVL: client disconnected");
-        client_.disconnect();
+        client_.disconnect();async_read
     }
 }
 
@@ -51,12 +51,16 @@ void DvlInterface::connect() {
            maxTime > this->get_clock()->now()) {
 
         try {
+            socket = tcp::socket(io_service);
+            deadline = 
+            socket.connect(tcp::endpoint( boost::asio::ip::address::from_string(address_), port_));
+
             client_.connect(address_, port_, timeout_);
             client_.async_read(
                 {1024, std::bind(&DvlInterface::dataCb, this, std::ref(client_),
                                  std::placeholders::_1)});
             connectSuccess = true;
-        } catch (tacopie::tacopie_error &e) {
+        } catch (boost::system::system_error &e) {
             std::cout << "DVL connection timeout, retrying " << address_ << ":"
                       << std::to_string(port_) << std::endl;
 
@@ -87,6 +91,7 @@ bool DvlInterface::validateChecksum(std::string &message) {
 }
 
 void DvlInterface::process(std::string message) {
+    RCLCPP_DEBUG(this->get_logger(), message.c_str());
     boost::algorithm::trim(message);
     if (message.compare(0, 6, "Nortek") == 0) {
         RCLCPP_INFO(this->get_logger(), "Connected to DVL");
