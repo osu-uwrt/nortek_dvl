@@ -1,9 +1,44 @@
+from socket import gethostbyname
 import launch
 import launch.actions
 import launch.substitutions
 import launch_ros.actions
+from launch.substitutions import LaunchConfiguration as LC
+from launch.actions import OpaqueFunction
+
+def eval_hostname(context, *args, **kwargs):
+    hostName = LC('address').perform(context)
+    
+    #do lookup
+    ip_address_here = hostName
+    if not "." in hostName:
+        ip_address_here = str(gethostbyname(hostName))
+    
+    node = launch_ros.actions.Node(
+            package='nortek_dvl',
+            executable='dvl',
+            name='dvl',
+            respawn=True,
+            output='screen',
+            
+            # use the parameters on the node
+            parameters = [
+                {'address': ip_address_here},
+                {'port': int(LC('port').perform(context))},
+                {'timeout': int(LC('timeout').perform(context))},
+                {'max_connect_time': int(LC('max_connect_time').perform(context))},
+                {'min_connect_time': int(LC('min_connect_time').perform(context))},
+                {'frame_id': LC('frame_id').perform(context)},
+                {'sonar_frame_id': LC('sonar_frame_id').perform(context)},
+                {'use_enu': bool(LC('use_enu').perform(context))},
+            ]
+        )
+    
+    return [node]
+    
 
 def generate_launch_description():
+    
     return launch.LaunchDescription([
         # declare the launch args to read for this file
         launch.actions.DeclareLaunchArgument(
@@ -39,24 +74,7 @@ def generate_launch_description():
             default_value='true',
             description='Whether to report twist in ENU frame'),
 
-        # create the nodes    
-        launch_ros.actions.Node(
-            package='nortek_dvl',
-            executable='dvl',
-            name='dvl',
-            respawn=True,
-            output='screen',
-            
-            # use the parameters on the node
-            parameters = [
-                {'address': launch.substitutions.LaunchConfiguration('address')},
-                {'port': launch.substitutions.LaunchConfiguration('port')},
-                {'timeout': launch.substitutions.LaunchConfiguration('timeout')},
-                {'max_connect_time': launch.substitutions.LaunchConfiguration('max_connect_time')},
-                {'min_connect_time': launch.substitutions.LaunchConfiguration('min_connect_time')},
-                {'frame_id': launch.substitutions.LaunchConfiguration('frame_id')},
-                {'sonar_frame_id': launch.substitutions.LaunchConfiguration('sonar_frame_id')},
-                {'use_enu': launch.substitutions.LaunchConfiguration('use_enu')},
-            ]
-        )
+        # create the nodes 
+        OpaqueFunction(function=eval_hostname),   
+        
     ])

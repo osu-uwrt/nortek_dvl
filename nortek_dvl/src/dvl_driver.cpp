@@ -33,7 +33,10 @@ void DvlInterface::connect() {
     //or a timeout has ended
     while(!client.is_bound() && maxTime > this->get_clock()->now() && rclcpp::ok()) {
         client.connect(inet_addr(address_.c_str()), port_);
-        rclcpp::sleep_for(std::chrono::seconds(min_connect_time_));
+        if(!client.is_bound()){
+            RCLCPP_ERROR(get_logger(), "Failed connection attempt to DVL! Retrying...");
+            rclcpp::sleep_for(std::chrono::seconds(min_connect_time_));
+        } 
     }
     //If the client is bound, the first message *should* be the correct message
     //and we should be good to process and check for Nortek
@@ -55,7 +58,7 @@ void DvlInterface::connect() {
         while(client.is_bound() && rclcpp::ok()){
             char message[257] = "";
             client.handle_read((void**)&message, 256); //130
-            RCLCPP_WARN(this->get_logger(), "Information: %s", message);
+            RCLCPP_DEBUG(this->get_logger(), "Information: %s", message);
             process(message);
         }
     }
@@ -131,7 +134,7 @@ bool DvlInterface::publishMessages(std::string &str) {
         dvl.time = std::stod(results[1]);
         dvl.dt1 = std::stof(results[2]);
         dvl.dt2 = std::stof(results[3]);
-        for (int i = 0; i < beam_pubs_.size(); i++) {
+        for (size_t i = 0; i < beam_pubs_.size(); i++) {
             beams[i].header.stamp = this->get_clock()->now();
             std::string frame = sonar_frame_id_;
             frame.replace(frame.find("%d"), 2, std::to_string(i));
