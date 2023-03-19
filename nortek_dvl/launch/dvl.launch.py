@@ -12,7 +12,13 @@ def eval_hostname(context, *args, **kwargs):
     #do lookup
     ip_address_here = hostName
     if not "." in hostName:
-        ip_address_here = str(gethostbyname(hostName))
+        try:
+            ip_address_here = str(gethostbyname(hostName))
+
+        except Exception as e:
+            print(f"Failed to look up hostname {hostName}. error: {e}")
+            exit(-1)
+
     
     node = launch_ros.actions.Node(
             package='nortek_dvl',
