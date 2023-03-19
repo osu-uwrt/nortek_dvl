@@ -16,7 +16,7 @@ def eval_hostname(context, *args, **kwargs):
             ip_address_here = str(gethostbyname(hostName))
 
         except Exception as e:
-            print(f"Failed to look up hostname {hostName}. error: {e}")
+            print(f"Failed to look up hostname {hostName} for DVL\nError: {e}")
             exit(-1)
 
     
