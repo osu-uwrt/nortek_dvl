@@ -132,9 +132,14 @@ bool DvlInterface::publishMessages(std::string &str) {
         dvl.time = std::stod(results[1]);
         dvl.dt1 = std::stof(results[2]);
         dvl.dt2 = std::stof(results[3]);
-        // dt2 (negative) is the time from the middle of the bottom ping to this output, so the
-        // velocity was measured that long before arrival
-        header.stamp = this->get_clock()->now() + rclcpp::Duration::from_seconds(dvl.dt2);
+        // dt2 (negative) is the time from the start of this output to the centre of the bottom
+        // echo, so the velocity was measured that long before arrival
+        double age = -dvl.dt2 / 1000.0;
+        if (age < 0.01 || age > 1.0) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "Bad DVL dt2 %.3f, stamping on arrival", dvl.dt2);
+            age = 0;
+        }
+        header.stamp = this->get_clock()->now() - rclcpp::Duration::from_seconds(age);
         dvl.header = header;
         for (size_t i = 0; i < beam_pubs_.size(); i++) {
             beams[i].header.stamp = header.stamp;
