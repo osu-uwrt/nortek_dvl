@@ -12,6 +12,7 @@
 #include <nortek_dvl_msgs/msg/dvl.hpp>
 #include <nortek_dvl_msgs/msg/dvl_status.hpp>
 #include <sensor_msgs/msg/range.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/header.hpp>
 
 namespace nortek_dvl {
@@ -25,6 +26,7 @@ class DvlInterface : public rclcpp::Node {
         twist_pub_;
     std::vector<rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr>
         beam_pubs_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr bottom_lock_pub_;
 
     void connect();
     int process(std::string message);
