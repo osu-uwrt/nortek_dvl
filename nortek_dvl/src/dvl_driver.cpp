@@ -128,14 +128,16 @@ bool DvlInterface::publishMessages(std::string &str) {
         std_msgs::msg::Header header;
         sensor_msgs::msg::Range beams[beam_pubs_.size()];
 
-        header.stamp = this->get_clock()->now();
         header.frame_id = frame_id_;
-        dvl.header = header;
         dvl.time = std::stod(results[1]);
         dvl.dt1 = std::stof(results[2]);
         dvl.dt2 = std::stof(results[3]);
+        // dt2 (negative) is the time from the middle of the bottom ping to this output, so the
+        // velocity was measured that long before arrival
+        header.stamp = this->get_clock()->now() + rclcpp::Duration::from_seconds(dvl.dt2);
+        dvl.header = header;
         for (size_t i = 0; i < beam_pubs_.size(); i++) {
-            beams[i].header.stamp = this->get_clock()->now();
+            beams[i].header.stamp = header.stamp;
             std::string frame = sonar_frame_id_;
             frame.replace(frame.find("%d"), 2, std::to_string(i));
             beams[i].header.frame_id = frame;
