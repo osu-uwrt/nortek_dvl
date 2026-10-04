@@ -14,6 +14,8 @@ DvlInterface::DvlInterface() : Node("nortek_dvl"){
     twist_pub_ =
         this->create_publisher<geometry_msgs::msg::TwistWithCovarianceStamped>(
             "dvl_twist", rclcpp::SensorDataQoS());
+    // Reliable so both reliable and best-effort subscribers connect
+    bottom_lock_pub_ = this->create_publisher<std_msgs::msg::Bool>("dvl/bottom_lock", 10);
     for (int i = 0; i < 4; i++) {
         beam_pubs_.push_back(this->create_publisher<sensor_msgs::msg::Range>(
             "dvl_sonar" + std::to_string(i), rclcpp::SensorDataQoS()));
@@ -184,6 +186,11 @@ bool DvlInterface::publishMessages(std::string &str) {
                        status);
         if (dvl_status_pub_->get_subscription_count() > 0)
             dvl_status_pub_->publish(status);
+
+        // Bottom lock is valid if x and y velocities are valid and at least one z velocity is valid
+        std_msgs::msg::Bool lock;
+        lock.data = status.x_vel_valid && status.y_vel_valid && (status.z1_vel_valid || status.z2_vel_valid);
+        bottom_lock_pub_->publish(lock);
         return true;
     }
 
