@@ -16,6 +16,9 @@ DvlInterface::DvlInterface() : Node("nortek_dvl"){
             "dvl_twist", rclcpp::SensorDataQoS());
     // Reliable so both reliable and best-effort subscribers connect
     bottom_lock_pub_ = this->create_publisher<std_msgs::msg::Bool>("dvl/bottom_lock", 10);
+    water_twist_pub_ =
+        this->create_publisher<geometry_msgs::msg::TwistWithCovarianceStamped>(
+            "dvl/water_twist", rclcpp::SensorDataQoS());
     for (int i = 0; i < 4; i++) {
         beam_pubs_.push_back(this->create_publisher<sensor_msgs::msg::Range>(
             "dvl_sonar" + std::to_string(i), rclcpp::SensorDataQoS()));
@@ -124,6 +127,18 @@ std::vector<std::string> DvlInterface::parseMessage(std::string &str) {
 bool DvlInterface::publishMessages(std::string &str) {
     std::vector<std::string> results = parseMessage(str);
     if (results.size() == 17) {
+        // $PNORBT9 (bottom track, DF359) and $PNORWT9 (water track, WTDF409) share this layout and
+        // both follow every ping when water track is on; only the sentence ID tells them apart.
+        std::string sentence = results[0];
+        const size_t start = sentence.find('$');
+        if (start != std::string::npos)
+            sentence = sentence.substr(start);
+        // which sentence this line is, not whether bottom track is currently valid
+        const bool is_bottom_track_sentence = sentence.find(bottom_track_sentence_) != std::string::npos;
+        if (seen_sentences_.insert(sentence).second)
+            RCLCPP_INFO(get_logger(), "DVL sentence %s: %s", sentence.c_str(),
+                        is_bottom_track_sentence ? "bottom track -> dvl_twist" : "water track -> dvl/water_twist");
+
         nortek_dvl_msgs::msg::Dvl dvl;
         nortek_dvl_msgs::msg::DvlStatus status;
         geometry_msgs::msg::TwistWithCovarianceStamped twist;
@@ -134,14 +149,42 @@ bool DvlInterface::publishMessages(std::string &str) {
         dvl.time = std::stod(results[1]);
         dvl.dt1 = std::stof(results[2]);
         dvl.dt2 = std::stof(results[3]);
-        // dt2 (negative) is the time from the start of this output to the centre of the bottom
-        // echo, so the velocity was measured that long before arrival
+        // dt2 (negative) is the time from the start of this output to the centre of the echo
+        // (bottom or water track cell), so the velocity was measured that long before arrival
         double age = -dvl.dt2 / 1000.0;
         if (age < 0.01 || age > 1.0) {
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "Bad DVL dt2 %.3f, stamping on arrival", dvl.dt2);
             age = 0;
         }
         header.stamp = this->get_clock()->now() - rclcpp::Duration::from_seconds(age);
+
+        const bool velocity_valid = isVelocityValid(std::stof(results[4])) &&
+                                    isVelocityValid(std::stof(results[5])) &&
+                                    isVelocityValid(std::stof(results[6]));
+        if (velocity_valid) {
+            double fom = std::stof(results[7]);
+            twist.header = header;
+            twist.twist.covariance[0] = fom * fom;
+            twist.twist.covariance[7] = fom * fom;
+            twist.twist.covariance[14] = fom * fom;
+            twist.twist.twist.linear.x = std::stof(results[4]);
+            twist.twist.twist.linear.y = std::stof(results[5]);
+            twist.twist.twist.linear.z = std::stof(results[6]);
+            if (use_enu_) {
+                twist.twist.twist.linear.y *= -1;
+                twist.twist.twist.linear.z *= -1;
+            }
+        }
+
+        // Water track is velocity relative to the water, not the ground: its own topic. Its D1-D4
+        // are distances to the water track cell and its status describes the water track, so the
+        // ranges, status and bottom lock below come from bottom track only.
+        if (!is_bottom_track_sentence) { // water track sentence: every ping, whatever bottom track is doing
+            if (velocity_valid && water_twist_pub_->get_subscription_count() > 0)
+                water_twist_pub_->publish(twist);
+            return true;
+        }
+
         dvl.header = header;
         for (size_t i = 0; i < beam_pubs_.size(); i++) {
             beams[i].header.stamp = header.stamp;
@@ -162,24 +205,8 @@ bool DvlInterface::publishMessages(std::string &str) {
         
 
 
-        if (isVelocityValid(std::stof(results[4])) &&
-            isVelocityValid(std::stof(results[5])) &&
-            isVelocityValid(std::stof(results[6]))) {
-            double fom = std::stof(results[7]);
-            twist.header = header;
-            twist.twist.covariance[0] = fom * fom;
-            twist.twist.covariance[7] = fom * fom;
-            twist.twist.covariance[14] = fom * fom;
-            twist.twist.twist.linear.x = std::stof(results[4]);
-            twist.twist.twist.linear.y = std::stof(results[5]);
-            twist.twist.twist.linear.z = std::stof(results[6]);
-            if (use_enu_) {
-                twist.twist.twist.linear.y *= -1;
-                twist.twist.twist.linear.z *= -1;
-            }
-            if (twist_pub_->get_subscription_count() > 0)
-                twist_pub_->publish(twist);
-        }
+        if (velocity_valid && twist_pub_->get_subscription_count() > 0)
+            twist_pub_->publish(twist);
 
         for (int i = 0; i < beam_pubs_.size(); i++) {
             if (beams[i].range != 0) {
@@ -261,6 +288,7 @@ void DvlInterface::readParams() {
     this->declare_parameter<std::string>("frame_id", "dvl_link");
     this->declare_parameter<std::string>("sonar_frame_id", "dvl_sonar%d_link");
     this->declare_parameter<bool>("use_enu", true);
+    this->declare_parameter<std::string>("bottom_track_sentence", "PNORBT");
 
     // now we can get the param values;
     this->get_parameter("address", address_);
@@ -271,7 +299,7 @@ void DvlInterface::readParams() {
     this->get_parameter("frame_id", frame_id_);
     this->get_parameter("sonar_frame_id", sonar_frame_id_);
     this->get_parameter("use_enu", use_enu_);
-
+    this->get_parameter("bottom_track_sentence", bottom_track_sentence_);
 
 
     // show the params to the user to confirm they were recieved
@@ -286,6 +314,7 @@ void DvlInterface::readParams() {
     std::cout << "frame_id: " << frame_id_ << std::endl;
     std::cout << "sonar_frame_id: " << sonar_frame_id_ << std::endl;
     std::cout << "use_enu: " << use_enu_ << std::endl;
+    std::cout << "bottom_track_sentence: " << bottom_track_sentence_ << std::endl;
     std::cout << "-----------------" << std::endl;
 }
 

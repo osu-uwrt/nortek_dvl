@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <rclcpp/rclcpp.hpp>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,8 @@ class DvlInterface : public rclcpp::Node {
     std::vector<rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr>
         beam_pubs_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr bottom_lock_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr
+        water_twist_pub_;
 
     void connect();
     int process(std::string message);
@@ -46,6 +49,11 @@ class DvlInterface : public rclcpp::Node {
     uint16_t port_;
     bool use_enu_;
     int max_connect_time_, min_connect_time_, timeout_;
+
+    // Sentences containing this ID are bottom track (dvl_twist); other velocity sentences are
+    // water track (dvl/water_twist).
+    std::string bottom_track_sentence_;
+    std::set<std::string> seen_sentences_;
 
     // socket manager
     std::shared_ptr<asio_tcp::TCPClient> connection;
